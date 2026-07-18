@@ -3,7 +3,7 @@
 # docker run --user $UID -it -v $PWD:/data -e SENZING_ENGINE_CONFIGURATION_JSON \
 #   brian/sz_incremental_withinfo -o /data/delta.json -i /data/tmpinfo.json /data/shuffled_data_to_load.json
 
-ARG BASE_IMAGE="senzing/senzingsdk-runtime:latest"
+ARG BASE_IMAGE="senzing/senzingsdk-runtime:4.3.3"
 FROM ${BASE_IMAGE}
 ARG BASE_IMAGE
 RUN echo "Building from base image: $BASE_IMAGE"
