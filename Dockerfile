@@ -1,7 +1,7 @@
 # docker build -t brian/sz_incremental_withinfo .
 # docker run --user $UID -it -v $PWD:/data -e SENZING_ENGINE_CONFIGURATION_JSON brian/sz_incremental_withinfo -o /data/delta.json -i /data/tmpinfo.json /dev/null
 
-ARG BASE_IMAGE=senzing/senzingapi-runtime:staging
+ARG BASE_IMAGE=senzing/senzingapi-runtime:3.13.1
 FROM ${BASE_IMAGE}
 
 ENV REFRESHED_AT=2022-08-27
