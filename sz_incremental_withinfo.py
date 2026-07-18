@@ -10,20 +10,20 @@ import sys
 import os
 import time
 
-from senzing import G2Engine, G2Exception, G2EngineFlags
+from senzing import SzEngineFlags, SzError
+
+import senzing_core
 
 INTERVAL = 10000
 
 
 def process_entity(engine, entity_id):
     try:
-        response = bytearray()
-        engine.getEntityByEntityID(
-            entity_id, response, G2EngineFlags.G2_ENTITY_INCLUDE_RECORD_DATA
+        return engine.get_entity_by_entity_id(
+            entity_id, SzEngineFlags.SZ_ENTITY_INCLUDE_RECORD_DATA
         )
-        return response
-    except G2Exception as err:
-        # assuming it is failing because it doesn't exist 0037E
+    except SzError as err:
+        # assuming it is failing because it doesn't exist (SZ_NOT_FOUND)
         print(err, file=sys.stderr)
         return None
     except Exception as err:
@@ -33,13 +33,10 @@ def process_entity(engine, entity_id):
 
 def process_redo(engine):
     try:
-        response = bytearray()
-        info = bytearray()
-
-        engine.processRedoRecordWithInfo(response, info)
-        if not response:
+        redo_record = engine.get_redo_record()
+        if not redo_record:
             return None
-        return info
+        return engine.process_redo_record(redo_record, SzEngineFlags.SZ_WITH_INFO)
     except Exception as err:
         print(err, file=sys.stderr)
         raise
@@ -47,12 +44,13 @@ def process_redo(engine):
 
 def process_line(engine, line):
     try:
-        response = bytearray()
         record = orjson.loads(line.encode())
-        engine.addRecordWithInfo(
-            record["DATA_SOURCE"], record["RECORD_ID"], line, response
+        return engine.add_record(
+            record["DATA_SOURCE"],
+            record["RECORD_ID"],
+            line,
+            SzEngineFlags.SZ_WITH_INFO,
         )
-        return response
     except Exception as err:
         print(f"{err} [{line}]", file=sys.stderr)
         raise
@@ -92,14 +90,16 @@ try:
             file=sys.stderr,
         )
         print(
-            "Please see https://senzing.zendesk.com/hc/en-us/articles/360038774134-G2Module-Configuration-and-the-Senzing-API",
+            "Please see https://docs.senzing.com for configuration details.",
             file=sys.stderr,
         )
         exit(-1)
 
-    # Initialize the G2Engine
-    g2 = G2Engine()
-    g2.init("g2_incremental_withinfo", engine_config, args.debugTrace)
+    # Initialize the Senzing engine via the v4 abstract factory
+    factory = senzing_core.SzAbstractFactoryCore(
+        "sz_incremental_withinfo", engine_config, verbose_logging=args.debugTrace
+    )
+    g2 = factory.create_engine()
     prevTime = time.time()
 
     with open(args.fileToProcess, "r") as fp:
@@ -141,7 +141,7 @@ try:
                         futures.pop(fut)
 
                         if result:
-                            print(result.decode(), file=fpWithInfo)
+                            print(result, file=fpWithInfo)
 
                         numLines += 1
                         if numLines % INTERVAL == 0:
@@ -152,9 +152,7 @@ try:
                             )
                             prevTime = nowTime
                         if numLines % 100000 == 0:
-                            response = bytearray()
-                            g2.stats(response)
-                            print(f"\n{response.decode()}\n")
+                            print(f"\n{g2.get_stats()}\n")
 
                         line = fp.readline()
                         if line:
@@ -172,7 +170,7 @@ try:
                 for i in range(executor._max_workers):
                     futures.add(executor.submit(process_redo, g2))
 
-                while True:
+                while futures:
 
                     done, _ = concurrent.futures.wait(
                         futures, return_when=concurrent.futures.FIRST_COMPLETED
@@ -182,7 +180,7 @@ try:
                         futures.remove(fut)
 
                         if result:
-                            print(result.decode(), file=fpWithInfo)
+                            print(result, file=fpWithInfo)
                             futures.add(executor.submit(process_redo, g2))
                             numLines += 1
 
@@ -194,9 +192,7 @@ try:
                                 )
                                 prevTime = nowTime
                             if numLines % 100000 == 0:
-                                response = bytearray()
-                                g2.stats(response)
-                                print(f"\n{response.decode()}\n")
+                                print(f"\n{g2.get_stats()}\n")
 
                 print(f"Processed total of {numLines} redo")
 
@@ -234,7 +230,7 @@ try:
                         processed_entity_id = futures.pop(fut)
 
                         if result:
-                            print(result.decode(), file=fpOut)
+                            print(result, file=fpOut)
                         else:
                             print(
                                 '{ENTITY":{"ENTITY_ID"'
@@ -252,9 +248,7 @@ try:
                             )
                             prevTime = nowTime
                         if numLines % 100000 == 0:
-                            response = bytearray()
-                            g2.stats(response)
-                            print(f"\n{response.decode()}\n")
+                            print(f"\n{g2.get_stats()}\n")
 
                         if unique_entities:
                             entity_id = unique_entities.pop()
