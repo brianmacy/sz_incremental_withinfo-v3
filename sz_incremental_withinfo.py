@@ -3,7 +3,6 @@
 import concurrent.futures
 
 import argparse
-import pathlib
 import orjson
 import itertools
 
