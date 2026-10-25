@@ -67,6 +67,20 @@ usage: sz_incremental_withinfo.py [-h] [-o OUTFILE] [-i INFOFILE] [-t] fileToPro
 - t: detailed trace information from the engine
 - fileToProcess: the actual Senzing JSON-lines file with records to add
 
+Entities that no longer exist when fetched (e.g. deleted by a later record) are written to the
+output file as `{"RESOLVED_ENTITY":{"ENTITY_ID":<id>,"RECORDS":[]}}`.
+
+# Testing
+
+```
+pip install -r requirements.txt
+python -m unittest discover -s tests -t . -v
+```
+
+The unit tests need no Senzing install.  `tests/test_e2e_incremental.py` runs the script against a
+real Senzing v4 engine and is skipped unless `SENZING_ENGINE_CONFIGURATION_JSON` is set for a
+repository with the `TEST` data source registered (the Senzing SDK must be importable).
+
 # Pre-requisites
 
 You will need a Senzing v4 repository/datastore and the `SENZING_ENGINE_CONFIGURATION_JSON`

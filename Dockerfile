@@ -57,7 +57,7 @@ RUN apt-get update \
  && apt-get -y clean \
  && rm -rf /var/lib/apt/lists/*
 
-COPY sz_incremental_withinfo.py /app/
+COPY sz_incremental_withinfo.py withinfo_helpers.py /app/
 RUN chmod +x /app/sz_incremental_withinfo.py
 
 # Set Python path for the Senzing v4 SDK

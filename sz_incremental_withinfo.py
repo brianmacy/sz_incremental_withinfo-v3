@@ -10,6 +10,7 @@ import time
 import orjson
 import senzing_core
 from senzing import SzEngineFlags, SzError
+from withinfo_helpers import extract_unique_entities, missing_entity_line
 
 INTERVAL = 10000
 
@@ -128,7 +129,6 @@ try:
                 }
 
                 while futures:
-
                     done, _ = concurrent.futures.wait(
                         futures, return_when=concurrent.futures.FIRST_COMPLETED
                     )
@@ -169,7 +169,6 @@ try:
                     futures.add(executor.submit(process_redo, g2))
 
                 while futures:
-
                     done, _ = concurrent.futures.wait(
                         futures, return_when=concurrent.futures.FIRST_COMPLETED
                     )
@@ -202,24 +201,19 @@ try:
                 numLines = 0
                 futures = {}
 
-                # probably more efficient ways to do this but it is best to dedupe the entityIDs
-                unique_entities = set()
-                for line in fpWithInfo:
-                    record = orjson.loads(line.encode())
-                    for entity in record["AFFECTED_ENTITIES"]:
-                        unique_entities.add(entity["ENTITY_ID"])
+                # dedupe the entityIDs so each changed entity is fetched once
+                unique_entities = extract_unique_entities(fpWithInfo)
 
-                print(f"Extracted {numLines} unique entities from WithInfo")
+                print(f"Extracted {len(unique_entities)} unique entities from WithInfo")
 
                 for i in range(executor._max_workers):
                     if unique_entities:
                         entity_id = unique_entities.pop()
-                        futures[
-                            executor.submit(process_entity, g2, entity_id)
-                        ] = entity_id
+                        futures[executor.submit(process_entity, g2, entity_id)] = (
+                            entity_id
+                        )
 
                 while futures:
-
                     done, _ = concurrent.futures.wait(
                         futures, return_when=concurrent.futures.FIRST_COMPLETED
                     )
@@ -230,12 +224,7 @@ try:
                         if result:
                             print(result, file=fpOut)
                         else:
-                            print(
-                                '{ENTITY":{"ENTITY_ID"'
-                                + str(processed_entity_id)
-                                + ',"RECORDS":[]}}',
-                                file=fpOut,
-                            )
+                            print(missing_entity_line(processed_entity_id), file=fpOut)
 
                         numLines += 1
                         if numLines % INTERVAL == 0:
@@ -250,9 +239,9 @@ try:
 
                         if unique_entities:
                             entity_id = unique_entities.pop()
-                            futures[
-                                executor.submit(process_entity, g2, entity_id)
-                            ] = entity_id
+                            futures[executor.submit(process_entity, g2, entity_id)] = (
+                                entity_id
+                            )
 
                 print(f"Processed total of {numLines} withinfo")
                 fpWithInfo.close()
