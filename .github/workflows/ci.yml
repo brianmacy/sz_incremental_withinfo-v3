@@ -28,3 +28,7 @@ jobs:
         run: ruff check .
       - name: Compile check (syntax)
         run: python -m compileall -q .
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Unit tests
+        run: python -m unittest discover -s tests -t . -v
