@@ -1,18 +1,15 @@
 #! /usr/bin/env python3
 
-import concurrent.futures
-
 import argparse
-import orjson
+import concurrent.futures
 import itertools
-
-import sys
 import os
+import sys
 import time
 
-from senzing import SzEngineFlags, SzError
-
+import orjson
 import senzing_core
+from senzing import SzEngineFlags, SzError
 
 INTERVAL = 10000
 
@@ -93,7 +90,7 @@ try:
             "Please see https://docs.senzing.com for configuration details.",
             file=sys.stderr,
         )
-        exit(-1)
+        sys.exit(-1)
 
     # Initialize the Senzing engine via the v4 abstract factory
     factory = senzing_core.SzAbstractFactoryCore(
@@ -116,12 +113,13 @@ try:
                 "Make sure these entities are processed and remove the file before re-running",
                 file=sys.stderr,
             )
-            exit(-1)
+            sys.exit(-1)
 
-        fpWithInfo = open(args.infoFile, "w+")
-        fpOut = open(args.outFile, "w+")
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers) as executor:
+        with (
+            open(args.infoFile, "w+") as fpWithInfo,
+            open(args.outFile, "w+") as fpOut,
+            concurrent.futures.ThreadPoolExecutor(max_workers) as executor,
+        ):
             try:
                 ## process the input file with each withinfo getting output
                 futures = {
@@ -260,11 +258,11 @@ try:
                 fpWithInfo.close()
                 os.remove(args.infoFile)
 
-            except Exception as err:
+            except (SzError, KeyError, ValueError, OSError) as err:
                 print(f"Shutting down due to error: {err}", file=sys.stderr)
                 executor.shutdown()
-                exit(-1)
+                sys.exit(-1)
 
-except Exception as err:
+except (SzError, KeyError, ValueError, OSError) as err:
     print(err, file=sys.stderr)
-    exit(-1)
+    sys.exit(-1)
