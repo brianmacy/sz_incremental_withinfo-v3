@@ -10,6 +10,7 @@ import time
 import orjson
 import senzing_core
 from senzing import SzEngineFlags, SzError
+
 from withinfo_helpers import extract_unique_entities, missing_entity_line
 
 INTERVAL = 10000
