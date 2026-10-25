@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import uuid
 from pathlib import Path
 
 import orjson
@@ -49,8 +50,13 @@ class TestEndToEnd(unittest.TestCase):
             in_file = tmp_path / "input.jsonl"
             out_file = tmp_path / "delta.jsonl"
             info_file = tmp_path / "withinfo.jsonl"
+            # unique RECORD_IDs: re-adding identical records affects no entities
+            run_id = uuid.uuid4().hex
+            records = [
+                {**r, "RECORD_ID": f"{r['RECORD_ID']}-{run_id}"} for r in RECORDS
+            ]
             in_file.write_text(
-                "".join(orjson.dumps(r).decode() + "\n" for r in RECORDS)
+                "".join(orjson.dumps(r).decode() + "\n" for r in records)
             )
 
             proc = subprocess.run(
